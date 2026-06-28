@@ -175,7 +175,7 @@ def prepare_dataset(filepath, save_hybrid=True):
     # Sort again after injection
     df = df.sort_values(['icao24', 'time']).reset_index(drop=True)
     
-    print(f"\\nFinal hybrid dataset: {len(df)} state vectors")
+    print(f"\nFinal hybrid dataset: {len(df)} state vectors")
     print(f"  Real: {len(df[df['is_attack'] == 0])}")
     print(f"  Attacks: {len(df[df['is_attack'] == 1])}")
     print(f"  Unique aircraft: {df['icao24'].nunique()}")

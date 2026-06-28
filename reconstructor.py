@@ -4,7 +4,7 @@ import pandas as pd
 def build_timelines(df):
     # Group ICAO24 and sort by time.
     # Returns a dictionary: {icao24: DataFrame of sorted state vectors}
-    print("\\n" + "=" * 50)
+    print("\n" + "=" * 50)
     print("PHASE 2: FORENSIC RECONSTRUCTION")
     print("=" * 50)
     
@@ -31,7 +31,7 @@ def build_timelines(df):
     # Print sample
     sample_icao = list(timelines.keys())[0]
     sample = timelines[sample_icao]
-    print(f"\\nSample timeline for {sample_icao}:")
+    print(f"\nSample timeline for {sample_icao}:")
     print(f"  Messages: {len(sample)}")
     print(f"  Duration: {sample['time'].max() - sample['time'].min():.0f} seconds")
     print(f"  Attack flag: {sample['is_attack'].iloc[0]}")
