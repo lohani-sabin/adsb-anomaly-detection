@@ -189,4 +189,4 @@ def prepare_dataset(filepath, save_hybrid=True):
 
 
 if __name__ == "__main__":
-    prepare_dataset("data/adsb_sample.csv", save_hybrid=True)
+    prepare_dataset("data/states_2018-05-28-00.csv", save_hybrid=True)
