@@ -130,8 +130,8 @@ def extract_features(timelines):
     features_df = features_df.replace([np.inf, -np.inf], np.nan).fillna(0)
     
     print(f"Extracted {len(features_df)} feature vectors with {len(features_df.columns)} features")
-    print(f"\tNormal aircraft: {sum(labels == 0)}")
-    print(f"\tAttack aircraft: {sum(labels == 1)}")
+    print(f"\tNormal aircraft: {(labels_series == 0).sum()}")
+    print(f"\tAttack aircraft: {(labels_series == 1).sum()}")
     
     return features_df, labels_series, icaos_series
 
