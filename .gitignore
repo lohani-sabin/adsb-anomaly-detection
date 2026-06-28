@@ -176,3 +176,9 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 
 states_2018-05-28-00.csv
+hybrid_dataset.csv
+iso_model.pkl
+lstm_model.keras
+lstm_training_history.csv
+scaler.pkl
+test_indices.npy
