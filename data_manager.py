@@ -183,7 +183,7 @@ def prepare_dataset(filepath, save_hybrid=True):
     if save_hybrid:
         os.makedirs("output", exist_ok=True)
         df.to_csv("output/hybrid_dataset.csv", index=False)
-        print("\\nSaved hybrid dataset to output/hybrid_dataset.csv")
+        print("\nSaved hybrid dataset to output/hybrid_dataset.csv")
     
     return df
 
