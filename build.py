@@ -2,7 +2,8 @@ import sys
 import os
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+sys.path.insert(0, current_dir)
 
 from data_manager import prepare_dataset
 from reconstructor import build_timelines
@@ -25,7 +26,7 @@ def main():
     features, labels, icaos = extract_features(timelines)
     
     # Step 4: Train models and save frozen artifacts
-    iso_model, lstm_model, scaler, X_test_scaled, y_test, test_idx = train_models(features, labels)
+    iso_model, lstm_model, scaler, X_test_scaled, y_test, test_idx, icaos_test = train_models(features, labels, icaos)
     
     print("\n" + "=" * 60)
     print("BUILD COMPLETE - All artifacts saved to output/")
