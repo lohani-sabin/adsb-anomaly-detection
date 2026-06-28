@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import joblib
 import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -142,8 +144,8 @@ def train_lstm_autoencoder(X_train_scaled, seq_length=10, epochs=50, batch_size=
     )
     
     # Save frozen model
-    model.save("output/lstm_model.h5")
-    print("Saved LSTM Autoencoder to output/lstm_model.h5")
+    model.save("output/lstm_model.keras")
+    print("Saved LSTM Autoencoder to output/lstm_model.keras")
     
     # Save training history for reporting
     history_df = pd.DataFrame({
@@ -182,7 +184,7 @@ def train_models(features_df, labels_series, test_size=0.2, random_state=42):
     print("Frozen artifacts saved to output/:")
     print("\t- scaler.pkl (normalization)")
     print("\t- iso_model.pkl (Isolation Forest)")
-    print("\t- lstm_model.h5 (LSTM Autoencoder)")
+    print("\t- lstm_model.keras (LSTM Autoencoder)")
     print("\t- test_indices.npy (test set indices)")
     
     return iso_model, lstm_model, scaler, X_test_scaled, y_test, test_idx
