@@ -261,7 +261,148 @@ def generate_per_attack_breakdown(results_df, save_path):
     print(f"  Saved: {save_path}")
 
 
+def generate_flagged_timelines(results_df):
+    # For every aircraft flagged as anomalous by the LSTM, produce a two-panel
+    # figure: flight-path scatter (lon vs lat, coloured by time) and altitude
+    # over time.  Saves to output/flagged_timelines/{icao24}.png.
+    if 'lstm_pred' not in results_df.columns:
+        print("\nSkipping flagged timelines (no LSTM predictions available).")
+        return
+
+    if not os.path.exists("output/hybrid_dataset.csv"):
+        print("\nSkipping flagged timelines (hybrid_dataset.csv not found).")
+        return
+
+    flagged = results_df[results_df['lstm_pred'] == 1]
+    if len(flagged) == 0:
+        print("\nNo aircraft flagged by LSTM — no timelines to generate.")
+        return
+
+    print(f"\nGenerating flagged timeline charts for {len(flagged)} aircraft...")
+
+    # Load raw state vectors once; cast numeric columns to float
+    hybrid = pd.read_csv("output/hybrid_dataset.csv")
+    for col in ['time', 'lat', 'lon', 'baroaltitude']:
+        if col in hybrid.columns:
+            hybrid[col] = pd.to_numeric(hybrid[col], errors='coerce')
+
+    os.makedirs("output/flagged_timelines", exist_ok=True)
+
+    generated = 0
+    for _, row in flagged.iterrows():
+        icao     = row['icao24']
+        atype    = row.get('attack_type', 'unknown')
+
+        # Get all state vectors for this aircraft
+        vectors = hybrid[hybrid['icao24'] == icao].copy()
+        vectors = vectors.dropna(subset=['lat', 'lon', 'time', 'baroaltitude'])
+        vectors = vectors.sort_values('time')
+
+        if len(vectors) < 2:
+            continue  # not enough points to plot
+
+        fig, (ax_map, ax_alt) = plt.subplots(1, 2, figsize=(14, 5))
+        fig.suptitle(f"Flagged Aircraft: {icao} | Attack: {atype}", fontsize=13)
+
+        # --- Left: flight path coloured by time ---
+        t = vectors['time'].values
+        sc = ax_map.scatter(
+            vectors['lon'].values,
+            vectors['lat'].values,
+            c=t,
+            cmap='viridis',
+            s=8,
+            alpha=0.8
+        )
+        plt.colorbar(sc, ax=ax_map, label='Time (s)')
+        ax_map.set_xlabel('Longitude')
+        ax_map.set_ylabel('Latitude')
+        ax_map.set_title('Flight Path')
+        ax_map.grid(True, alpha=0.3)
+
+        # --- Right: altitude over time ---
+        ax_alt.plot(vectors['time'].values, vectors['baroaltitude'].values,
+                    linewidth=1.2, color='steelblue')
+        ax_alt.set_xlabel('Time (s)')
+        ax_alt.set_ylabel('Barometric Altitude (m)')
+        ax_alt.set_title('Altitude Profile')
+        ax_alt.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        save_path = f"output/flagged_timelines/{icao}.png"
+        plt.savefig(save_path, dpi=150)
+        plt.close()
+        generated += 1
+
+    print(f"Generated {generated} timeline charts for flagged aircraft")
+    print(f"\tSaved to: output/flagged_timelines/")
+
+
 def generate_report_text(metrics, per_attack_metrics, output_path):
+    # Generate human-readable report text.
+    lines = [
+        "=" * 60,
+        "AIRCRAFT NETWORK FORENSIC EVALUATION REPORT",
+        "=" * 60,
+        "",
+        "OVERALL PERFORMANCE",
+        "-" * 40,
+        "",
+        "Isolation Forest:",
+        f"\tPrecision:\t{metrics['iso']['precision']:.4f}",
+        f"\tRecall:\t{metrics['iso']['recall']:.4f}",
+        f"\tFPR:\t{metrics['iso']['fpr']:.4f}",
+        f"\tF1 Score:\t{metrics['iso']['f1_score']:.4f}",
+        f"\tAccuracy:\t{metrics['iso']['accuracy']:.4f}",
+        f"\tAUC-ROC:\t{metrics['iso'].get('auc_roc', 'N/A')}",
+        f"\tTP: {metrics['iso']['tp']} | FP: {metrics['iso']['fp']} | TN: {metrics['iso']['tn']} | FN: {metrics['iso']['fn']}",
+        ""
+    ]
+
+    if 'lstm' in metrics:
+        lines.extend([
+            "LSTM Autoencoder:",
+            f"\tPrecision:\t{metrics['lstm']['precision']:.4f}",
+            f"\tRecall:\t{metrics['lstm']['recall']:.4f}",
+            f"\tFPR:\t{metrics['lstm']['fpr']:.4f}",
+            f"\tF1 Score:\t{metrics['lstm']['f1_score']:.4f}",
+            f"\tAccuracy:\t{metrics['lstm']['accuracy']:.4f}",
+            f"\tAUC-ROC:\t{metrics['lstm'].get('auc_roc', 'N/A')}",
+            f"\tTP: {metrics['lstm']['tp']} | FP: {metrics['lstm']['fp']} | TN: {metrics['lstm']['tn']} | FN: {metrics['lstm']['fn']}",
+            ""
+        ])
+
+    lines.extend([
+        "PER-ATTACK BREAKDOWN",
+        "-" * 40,
+        ""
+    ])
+
+    for am in per_attack_metrics:
+        lines.append(f"{am['attack_type']} (n={am['count']}):")
+        lines.append(f"\tIso Forest:\tPrecision={am['iso_precision']:.4f}, Recall={am['iso_recall']:.4f}, F1={am['iso_f1']:.4f}")
+        if 'lstm_precision' in am:
+            lines.append(f"\tLSTM:\tPrecision={am['lstm_precision']:.4f}, Recall={am['lstm_recall']:.4f}, F1={am['lstm_f1']:.4f}")
+        lines.append("")
+
+    lines.extend([
+        "OPERATIONAL LIMITATIONS",
+        "-" * 40,
+        "- LSTM requires sufficient sequence length; may miss early anomalies",
+        "- Threshold selection affects trade-off between precision and recall",
+        "- FPR at 3% still generates many alerts at high-traffic airports",
+        "- Cross-airport generalization requires retraining on local patterns",
+        "- Synthetic attacks inherit realism from cloned real trajectories",
+        "- Model comparison assumes identical test conditions for both algorithms"
+    ])
+
+    with open(output_path, 'w') as f:
+        f.write('\n'.join(lines))
+
+    print(f"\tSaved: {output_path}")
+
+
+
     # Generate human-readable report text.
     lines = [
         "=" * 60,
@@ -458,8 +599,11 @@ def run_evaluation(features, labels, icaos):
     
     # 5. Per-attack breakdown
     generate_per_attack_breakdown(results, "output/report/per_attack_breakdown.png")
-    
-    # 6. Anomaly scores CSV
+
+    # 6. Flagged aircraft timelines
+    generate_flagged_timelines(results)
+
+    # 7. Anomaly scores CSV
     results.to_csv("output/report/anomaly_scores.csv", index=False)
     print("\tSaved: output/report/anomaly_scores.csv")
     
@@ -474,3 +618,4 @@ def run_evaluation(features, labels, icaos):
     print("\t- confusion_matrix_*.png")
     print("\t- roc_curve.png")
     print("\t- per_attack_breakdown.png")
+    print("\t- flagged_timelines/*.png (per-aircraft flight path & altitude)")
