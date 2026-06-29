@@ -168,9 +168,9 @@ def prepare_dataset(filepath, save_hybrid=True):
     df['attack_type'] = 'none'
     
     # Inject attacks
-    df = inject_ghost_aircraft(df, num_ghosts=5)
-    df = inject_trajectory_spoof(df, num_targets=3)
-    df = inject_message_deletion(df, num_targets=2, deletion_rate=0.4)
+    df = inject_ghost_aircraft(df, num_ghosts=50)
+    df = inject_trajectory_spoof(df, num_targets=30)
+    df = inject_message_deletion(df, num_targets=20, deletion_rate=0.4)
     
     # Sort again after injection
     df = df.sort_values(['icao24', 'time']).reset_index(drop=True)

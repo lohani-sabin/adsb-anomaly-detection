@@ -61,7 +61,7 @@ def fit_scaler(X_train):
     return scaler, X_train_scaled
 
 
-def train_isolation_forest(X_train_scaled, contamination=0.01, n_estimators=200, random_state=42):
+def train_isolation_forest(X_train_scaled, contamination=0.015, n_estimators=200, random_state=42):
     # Train Isolation Forest for instant statistical outlier detection.
     print("\nTraining Isolation Forest...")
     

@@ -99,8 +99,8 @@ def predict_lstm_autoencoder(lstm_model, scaler, X_test, seq_length=10):
     # For the first seq_length-1 samples, use the first sequence error
     scores[:seq_length - 1] = mse[0] if len(mse) > 0 else 0
     
-    # Threshold: use 90th percentile (top 10% flagged as anomalies)
-    threshold = np.percentile(scores, 90)
+    # Threshold: 99th percentile (top 1% flagged as anomalies)
+    threshold = np.percentile(scores, 99)
     binary_preds = (scores > threshold).astype(int)
     
     return binary_preds, scores
@@ -209,19 +209,40 @@ def generate_per_attack_breakdown(results_df, save_path):
         y_true_sub = subset['true_label'].values
         y_pred_iso_sub = subset['iso_pred'].values
         
-        entry = {
-            'attack_type': atype,
-            'count': len(subset),
-            'iso_precision': precision_score(y_true_sub, y_pred_iso_sub, zero_division=0),
-            'iso_recall': recall_score(y_true_sub, y_pred_iso_sub, zero_division=0),
-            'iso_f1': f1_score(y_true_sub, y_pred_iso_sub, zero_division=0)
-        }
+        # For attack types: show RECALL (% of that attack caught)
+        # For normal: show FPR (% of normal falsely flagged)
+        if atype == 'none':
+            fp = sum((y_true_sub == 0) & (y_pred_iso_sub == 1))
+            tn = sum((y_true_sub == 0) & (y_pred_iso_sub == 0))
+            iso_fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
+            entry = {
+                'attack_type': 'normal',
+                'count': len(subset),
+                'iso_recall': iso_fpr,  # Actually FPR for normal class
+                'lstm_recall': 0  # Will fill below
+            }
+        else:
+            tp = sum((y_true_sub == 1) & (y_pred_iso_sub == 1))
+            fn = sum((y_true_sub == 1) & (y_pred_iso_sub == 0))
+            iso_recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            entry = {
+                'attack_type': atype,
+                'count': len(subset),
+                'iso_recall': iso_recall,
+                'lstm_recall': 0
+            }
         
         if 'lstm_pred' in subset.columns:
             y_pred_lstm_sub = subset['lstm_pred'].values
-            entry['lstm_precision'] = precision_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
-            entry['lstm_recall'] = recall_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
-            entry['lstm_f1'] = f1_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
+            if atype == 'none':
+                fp = sum((y_true_sub == 0) & (y_pred_lstm_sub == 1))
+                tn = sum((y_true_sub == 0) & (y_pred_lstm_sub == 0))
+                entry['lstm_recall'] = fp / (fp + tn) if (fp + tn) > 0 else 0
+            else:
+                tp = sum((y_true_sub == 1) & (y_pred_lstm_sub == 1))
+                fn = sum((y_true_sub == 1) & (y_pred_lstm_sub == 0))
+                entry['lstm_recall'] = tp / (tp + fn) if (tp + fn) > 0 else 0
+        
         
         metrics_by_attack.append(entry)
     
