@@ -56,42 +56,38 @@ def extract_features(timelines):
         
         # === 4. GEOGRAPHIC DISPLACEMENT ERROR (Dead Reckoning) ===
         # Predict next position from current velocity/heading, compare to actual
-        displacement_errors = []
-        
-        for i in range(len(df) - 1):
-            curr = df.iloc[i]
-            next_row = df.iloc[i + 1]
-            dt = next_row['time'] - curr['time']
-            
-            if dt <= 0:
-                continue
-            
-            # Dead reckoning: predict next position
-            # distance = velocity * time
-            distance_m = curr['velocity'] * dt
-            
-            # Convert to lat/lon displacement (approximate)
-            heading_rad = np.radians(curr['heading'])
-            dlat = (distance_m * np.cos(heading_rad)) / 111320  # meters to degrees
-            dlon = (distance_m * np.sin(heading_rad)) / (111320 * np.cos(np.radians(curr['lat'])))
-            
-            pred_lat = curr['lat'] + dlat
-            pred_lon = curr['lon'] + dlon
-            
-            # Error: difference between predicted and actual
-            lat_error = abs(pred_lat - next_row['lat'])
-            lon_error = abs(pred_lon - next_row['lon'])
-            
-            displacement_errors.append(np.sqrt(lat_error**2 + lon_error**2))
-        
-        if displacement_errors:
-            features['drift_mean'] = np.mean(displacement_errors)
-            features['drift_std'] = np.std(displacement_errors) if len(displacement_errors) > 1 else 0
-            features['drift_max'] = max(displacement_errors)
+        # Vectorised: avoids slow row-by-row Python loop
+        curr_time     = df['time'].values[:-1]
+        next_time     = df['time'].values[1:]
+        dt            = next_time - curr_time          # seconds between messages
+
+        valid         = dt > 0
+        if valid.any():
+            v         = df['velocity'].values[:-1][valid]
+            h_rad     = np.radians(df['heading'].values[:-1][valid])
+            lat_c     = df['lat'].values[:-1][valid]
+            dt_v      = dt[valid]
+
+            distance_m = v * dt_v
+
+            dlat = (distance_m * np.cos(h_rad)) / 111320
+            dlon = (distance_m * np.sin(h_rad)) / (111320 * np.cos(np.radians(lat_c)))
+
+            pred_lat = lat_c + dlat
+            pred_lon = df['lon'].values[:-1][valid] + dlon
+
+            lat_err = np.abs(pred_lat - df['lat'].values[1:][valid])
+            lon_err = np.abs(pred_lon - df['lon'].values[1:][valid])
+
+            displacement_errors = np.sqrt(lat_err**2 + lon_err**2)
+
+            features['drift_mean'] = float(np.mean(displacement_errors))
+            features['drift_std']  = float(np.std(displacement_errors))
+            features['drift_max']  = float(np.max(displacement_errors))
         else:
             features['drift_mean'] = 0
-            features['drift_std'] = 0
-            features['drift_max'] = 0
+            features['drift_std']  = 0
+            features['drift_max']  = 0
         
         # === 5. VELOCITY CONSISTENCY ===
         features['velocity_mean'] = df['velocity'].mean()
