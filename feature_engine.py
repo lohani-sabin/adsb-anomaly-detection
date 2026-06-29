@@ -57,15 +57,15 @@ def extract_features(timelines):
         # === 4. GEOGRAPHIC DISPLACEMENT ERROR (Dead Reckoning) ===
         # Predict next position from current velocity/heading, compare to actual
         # Vectorised: avoids slow row-by-row Python loop
-        curr_time     = df['time'].values[:-1]
-        next_time     = df['time'].values[1:]
+        curr_time     = df['time'].values[:-1].astype(np.float64)
+        next_time     = df['time'].values[1:].astype(np.float64)
         dt            = next_time - curr_time          # seconds between messages
 
         valid         = dt > 0
         if valid.any():
-            v         = df['velocity'].values[:-1][valid]
-            h_rad     = np.radians(df['heading'].values[:-1][valid])
-            lat_c     = df['lat'].values[:-1][valid]
+            v         = df['velocity'].values[:-1][valid].astype(np.float64)
+            h_rad     = np.radians(df['heading'].values[:-1][valid].astype(np.float64))
+            lat_c     = df['lat'].values[:-1][valid].astype(np.float64)
             dt_v      = dt[valid]
 
             distance_m = v * dt_v

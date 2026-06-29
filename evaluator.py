@@ -52,18 +52,20 @@ def load_frozen_models():
 
 
 def predict_isolation_forest(iso_model, scaler, X_test):
-    # Get anomaly scores and predictions from Isolation Forest."""
+    # Get anomaly scores and predictions from Isolation Forest.
     X_scaled = scaler.transform(X_test)
-    
-    # anomaly_score: lower = more anomalous (sklearn convention)
-    # We negate so higher = more anomalous (standard convention)
+
+    # score_samples: lower = more anomalous (sklearn convention).
+    # Negate so higher = more anomalous (standard convention for AUC).
     anomaly_scores = -iso_model.score_samples(X_scaled)
-    
-    # Default predictions: -1 = anomaly, 1 = normal
-    raw_preds = iso_model.predict(X_scaled)
-    # Convert to 1 = anomaly, 0 = normal
-    binary_preds = (raw_preds == -1).astype(int)
-    
+
+    # Threshold at the contamination-implied percentile rather than using
+    # iso_model.predict(), which applies a fixed training-set threshold that
+    # can invert rankings when the test distribution differs.
+    contamination = iso_model.contamination  # e.g. 0.015
+    threshold = np.percentile(anomaly_scores, 100 * (1 - contamination))
+    binary_preds = (anomaly_scores >= threshold).astype(int)
+
     return binary_preds, anomaly_scores
 
 
@@ -99,8 +101,8 @@ def predict_lstm_autoencoder(lstm_model, scaler, X_test, seq_length=10):
     # For the first seq_length-1 samples, use the first sequence error
     scores[:seq_length - 1] = mse[0] if len(mse) > 0 else 0
     
-    # Threshold: 99th percentile (top 1% flagged as anomalies)
-    threshold = np.percentile(scores, 99)
+    # Threshold: 97th percentile (top 3% flagged as anomalies)
+    threshold = np.percentile(scores, 97)
     binary_preds = (scores > threshold).astype(int)
     
     return binary_preds, scores

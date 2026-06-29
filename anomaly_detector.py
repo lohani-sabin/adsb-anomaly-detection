@@ -22,30 +22,45 @@ except ImportError:
     print("WARNING: TensorFlow not installed. LSTM Autoencoder will be skipped.")
 
 
-def prepare_data(features_df, labels_series, test_size=0.2, random_state=42):
+def prepare_data(features_df, labels_series, icaos_series=None, test_size=0.2, random_state=42):
     # Split data into train and test sets by aircraft (ICAO24 index), ensuring no data leakage.
+    # Stratifies on attack_type so every attack variant appears in both train and test.
     print("\n" + "=" * 50)
     print("PHASE 4: MODEL TRAINING")
     print("=" * 50)
-    
-    # Split indices
+
     indices = np.arange(len(features_df))
+
+    # Build a per-aircraft attack_type series for stratification.
+    # Requires the hybrid_dataset.csv written by prepare_dataset().
+    attack_type_strat = labels_series.copy()  # fallback: binary label
+    if icaos_series is not None and os.path.exists("output/hybrid_dataset.csv"):
+        hybrid = pd.read_csv("output/hybrid_dataset.csv", usecols=['icao24', 'attack_type'])
+        attack_map = hybrid.groupby('icao24')['attack_type'].first()
+        attack_type_strat = icaos_series.map(attack_map).fillna('none')
+
     train_idx, test_idx = train_test_split(
-        indices, test_size=test_size, random_state=random_state, stratify=labels_series
+        indices, test_size=test_size, random_state=random_state, stratify=attack_type_strat
     )
-    
+
     X_train = features_df.iloc[train_idx]
-    X_test = features_df.iloc[test_idx]
+    X_test  = features_df.iloc[test_idx]
     y_train = labels_series.iloc[train_idx]
-    y_test = labels_series.iloc[test_idx]
-    
-    # For training: ONLY non-attack data
-    # Unsupervised learning - on clean data only
+    y_test  = labels_series.iloc[test_idx]
+
+    # For training: ONLY non-attack data (unsupervised learning on clean data)
     X_train_normal = X_train[y_train == 0]
-    
+
     print(f"Training set: {len(X_train)} aircraft ({len(X_train_normal)} normal)")
     print(f"Test set: {len(X_test)} aircraft ({sum(y_test == 1)} attacks)")
-    
+
+    # Save test ICAOs so evaluate.py uses the same held-out set
+    if icaos_series is not None:
+        test_icaos = icaos_series.iloc[test_idx].values
+        os.makedirs("output", exist_ok=True)
+        np.save("output/test_icaos.npy", test_icaos)
+        print(f"Saved {len(test_icaos)} test ICAOs to output/test_icaos.npy")
+
     return X_train_normal, X_test, y_train, y_test, train_idx, test_idx
 
 
@@ -158,11 +173,11 @@ def train_lstm_autoencoder(X_train_scaled, seq_length=10, epochs=50, batch_size=
     return model
 
 
-def train_models(features_df, labels_series, test_size=0.2, random_state=42):
+def train_models(features_df, labels_series, icaos_series=None, test_size=0.2, random_state=42):
     # Main training pipeline: scale data, train both models and save artifacts
     # Split data
     X_train_normal, X_test, y_train, y_test, train_idx, test_idx = prepare_data(
-        features_df, labels_series, test_size, random_state
+        features_df, labels_series, icaos_series, test_size, random_state
     )
     
     # Scale data (fit on normal training data only)

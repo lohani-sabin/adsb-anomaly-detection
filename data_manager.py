@@ -91,29 +91,34 @@ def inject_ghost_aircraft(df, num_ghosts=5):
 def inject_trajectory_spoof(df, num_targets=3):
     # Inject trajectory spoofing by gradually drifting real aircraft positions.
     # Replicates UT Austin GPS spoofing demonstration style attacks.
+    # Creates SEPARATE spoofed copies (SPOOF001, SPOOF002, ...) so the attack
+    # aircraft have distinct ICAOs and don't overwrite the real aircraft records.
     real_icaos = df[df['is_attack'] == 0]['icao24'].unique()
     targets = random.sample(list(real_icaos), min(num_targets, len(real_icaos)))
     
     spoofed = []
     
-    for target_icao in targets:
+    for i, target_icao in enumerate(targets):
         target = df[df['icao24'] == target_icao].copy()
         
         if len(target) < 20:
             continue
         
+        spoof = target.copy()
+        spoof['icao24'] = f'SPOOF{i+1:03d}'
+
         # Gradual drift
-        drift_factor = np.linspace(0, 0.003, len(target))  # 0 to 0.003 degrees
+        drift_factor = np.linspace(0, 0.003, len(spoof))  # 0 to 0.003 degrees
         
         # Add slight drift to lat/lon
-        target['lat'] = target['lat'] + drift_factor * np.random.choice([-1, 1])
-        target['lon'] = target['lon'] + drift_factor * np.random.choice([-1, 1])
+        spoof['lat'] = spoof['lat'] + drift_factor * np.random.choice([-1, 1])
+        spoof['lon'] = spoof['lon'] + drift_factor * np.random.choice([-1, 1])
         
         # Keep velocity/heading consistent (the attacker tries to hide)
-        target['is_attack'] = 1
-        target['attack_type'] = 'trajectory_spoof'
+        spoof['is_attack'] = 1
+        spoof['attack_type'] = 'trajectory_spoof'
         
-        spoofed.append(target)
+        spoofed.append(spoof)
     
     if spoofed:
         spoof_df = pd.concat(spoofed, ignore_index=True)
@@ -125,24 +130,28 @@ def inject_trajectory_spoof(df, num_targets=3):
 
 def inject_message_deletion(df, num_targets=2, deletion_rate=0.4):
     # Inject Targeted Message Deletion (DoS Simulation).
-    # Randomly removes messages from real aircraft to simulate jamming/DoS.
+    # Creates SEPARATE deletion copies (DELETE001, DELETE002, ...) so the attack
+    # aircraft have distinct ICAOs and don't overwrite the real aircraft records.
     real_icaos = df[df['is_attack'] == 0]['icao24'].unique()
     targets = random.sample(list(real_icaos), min(num_targets, len(real_icaos)))
     
     deleted = []
     
-    for target_icao in targets:
+    for i, target_icao in enumerate(targets):
         target = df[df['icao24'] == target_icao].copy()
         
         if len(target) < 20:
             continue
         
+        deletion = target.copy()
+        deletion['icao24'] = f'DELETE{i+1:03d}'
+
         # Randomly delete a percentage of messages
-        keep_mask = np.random.random(len(target)) > deletion_rate
+        keep_mask = np.random.random(len(deletion)) > deletion_rate
         keep_mask[0] = True   # keep first message
         keep_mask[-1] = True  # keep last message
         
-        deleted_df = target[keep_mask].copy()
+        deleted_df = deletion[keep_mask].copy()
         deleted_df['is_attack'] = 1
         deleted_df['attack_type'] = 'message_deletion'
         

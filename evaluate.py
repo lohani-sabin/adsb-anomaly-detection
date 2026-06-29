@@ -39,6 +39,12 @@ def main():
     # Load dataset
     print("\nLoading dataset...")
     df = pd.read_csv(dataset_path)
+    # Ensure numeric columns are properly typed after CSV round-trip
+    numeric_cols = ['time', 'lat', 'lon', 'baroaltitude', 'velocity', 'heading',
+                    'vertrate', 'is_attack']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     print(f"\tLoaded {len(df)} state vectors for {df['icao24'].nunique()} aircraft")
     
     # Build timelines
