@@ -26,6 +26,8 @@ def main():
     features, labels, icaos = extract_features(timelines)
     
     # Step 4: Train models and save frozen artifacts
+    import numpy as np
+    np.random.seed(42)
     iso_model, lstm_model, scaler, X_test_scaled, y_test, test_idx = train_models(features, labels, icaos)
     
     print("\n" + "=" * 60)

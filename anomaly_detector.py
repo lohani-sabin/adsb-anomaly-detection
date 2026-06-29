@@ -1,4 +1,5 @@
 import numpy as np
+np.random.seed(42)
 import pandas as pd
 import joblib
 import os
@@ -13,6 +14,8 @@ from sklearn.model_selection import train_test_split
 
 # Try to import TensorFlow/Keras
 try:
+    import tensorflow as tf
+    tf.random.set_seed(42)
     from tensorflow.keras.models import Model
     from tensorflow.keras.layers import Input, LSTM, RepeatVector, TimeDistributed, Dense
     from tensorflow.keras.callbacks import EarlyStopping
