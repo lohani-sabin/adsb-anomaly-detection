@@ -112,6 +112,9 @@ def extract_features(timelines):
         # === 8. MESSAGE COUNT ===
         features['message_count'] = len(df)
         features['duration_sec'] = df['time'].max() - df['time'].min()
+
+        expected_messages = features['duration_sec'] / features['inter_arrival_mean'] if features['inter_arrival_mean'] > 0 else features['message_count']
+        features['sequence_integrity'] = features['message_count'] / expected_messages if expected_messages > 0 else 1.0
         
         # Store
         feature_rows.append(features)
