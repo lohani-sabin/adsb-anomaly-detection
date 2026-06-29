@@ -209,40 +209,19 @@ def generate_per_attack_breakdown(results_df, save_path):
         y_true_sub = subset['true_label'].values
         y_pred_iso_sub = subset['iso_pred'].values
         
-        # For attack types: show RECALL (% of that attack caught)
-        # For normal: show FPR (% of normal falsely flagged)
-        if atype == 'none':
-            fp = sum((y_true_sub == 0) & (y_pred_iso_sub == 1))
-            tn = sum((y_true_sub == 0) & (y_pred_iso_sub == 0))
-            iso_fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
-            entry = {
-                'attack_type': 'normal',
-                'count': len(subset),
-                'iso_recall': iso_fpr,  # Actually FPR for normal class
-                'lstm_recall': 0  # Will fill below
-            }
-        else:
-            tp = sum((y_true_sub == 1) & (y_pred_iso_sub == 1))
-            fn = sum((y_true_sub == 1) & (y_pred_iso_sub == 0))
-            iso_recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-            entry = {
-                'attack_type': atype,
-                'count': len(subset),
-                'iso_recall': iso_recall,
-                'lstm_recall': 0
-            }
+        entry = {
+            'attack_type': atype,
+            'count': len(subset),
+            'iso_precision': precision_score(y_true_sub, y_pred_iso_sub, zero_division=0),
+            'iso_recall': recall_score(y_true_sub, y_pred_iso_sub, zero_division=0),
+            'iso_f1': f1_score(y_true_sub, y_pred_iso_sub, zero_division=0),
+        }
         
         if 'lstm_pred' in subset.columns:
             y_pred_lstm_sub = subset['lstm_pred'].values
-            if atype == 'none':
-                fp = sum((y_true_sub == 0) & (y_pred_lstm_sub == 1))
-                tn = sum((y_true_sub == 0) & (y_pred_lstm_sub == 0))
-                entry['lstm_recall'] = fp / (fp + tn) if (fp + tn) > 0 else 0
-            else:
-                tp = sum((y_true_sub == 1) & (y_pred_lstm_sub == 1))
-                fn = sum((y_true_sub == 1) & (y_pred_lstm_sub == 0))
-                entry['lstm_recall'] = tp / (tp + fn) if (tp + fn) > 0 else 0
-        
+            entry['lstm_precision'] = precision_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
+            entry['lstm_recall'] = recall_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
+            entry['lstm_f1'] = f1_score(y_true_sub, y_pred_lstm_sub, zero_division=0)
         
         metrics_by_attack.append(entry)
     
